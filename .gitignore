@@ -1,4 +1,6 @@
 .build/
+.swiftpm/
 *.app/
 *.xcodeproj/
 .DS_Store
+ClankerMonitor-v*-macos.zip

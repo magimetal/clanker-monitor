@@ -91,6 +91,39 @@ open ClankerMonitor.app
 
 ---
 
+## Release (manual)
+
+Current release flow:
+
+1. Update `CHANGELOG.md` for the new version.
+2. Commit and push your release changes.
+3. Build the app bundle:
+
+```bash
+./build-app.sh
+```
+
+4. Package the artifact:
+
+```bash
+zip -r "ClankerMonitor-vX.Y.Z-macos.zip" "ClankerMonitor.app"
+```
+
+5. Create and push the tag:
+
+```bash
+git tag "vX.Y.Z"
+git push origin "vX.Y.Z"
+```
+
+6. Create the GitHub release and attach the artifact:
+
+```bash
+gh release create "vX.Y.Z" "ClankerMonitor-vX.Y.Z-macos.zip" --title "vX.Y.Z" --notes-file CHANGELOG.md
+```
+
+---
+
 ## Install and use
 
 1. Build the app bundle (`./build-app.sh`).
