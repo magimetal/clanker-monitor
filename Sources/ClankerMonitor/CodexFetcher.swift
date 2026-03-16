@@ -41,13 +41,20 @@ func fetchCodex() async -> ProviderResult {
         }
 
         let decoded = try JSONDecoder().decode(CodexUsageResponse.self, from: data)
-        guard let window = decoded.rateLimit?.primaryWindow ?? decoded.rateLimit?.secondaryWindow else {
+        let windows = [decoded.rateLimit?.primaryWindow, decoded.rateLimit?.secondaryWindow].compactMap { $0 }
+        let grouped = groupCodexWindows(windows)
+
+        guard let primary = grouped.primary ?? grouped.weekly else {
             return ProviderResult(errorMessage: "Codex: usage window missing", updatedAt: Date())
         }
 
+        let weeklyWindow = grouped.primary != nil ? grouped.weekly : nil
+
         return ProviderResult(
-            usedPercent: Double(window.usedPercent),
-            resetDescription: "resets at \(formatResetTime(unixSeconds: window.resetAt))",
+            usedPercent: Double(primary.usedPercent),
+            resetDescription: "resets at \(formatResetTime(unixSeconds: primary.resetAt))",
+            weeklyUsedPercent: weeklyWindow.map { Double($0.usedPercent) },
+            weeklyResetDescription: weeklyWindow.map { "resets at \(formatResetTime(unixSeconds: $0.resetAt))" },
             planLabel: decoded.planType,
             errorMessage: nil,
             updatedAt: Date())
@@ -108,12 +115,33 @@ private struct CodexUsageResponse: Decodable {
     struct WindowSnapshot: Decodable {
         let usedPercent: Int
         let resetAt: Int
+        let limitWindowSeconds: Int?
 
         enum CodingKeys: String, CodingKey {
             case usedPercent = "used_percent"
             case resetAt = "reset_at"
+            case limitWindowSeconds = "limit_window_seconds"
         }
     }
+}
+
+private func groupCodexWindows(_ windows: [CodexUsageResponse.WindowSnapshot]) -> (primary: CodexUsageResponse.WindowSnapshot?, weekly: CodexUsageResponse.WindowSnapshot?) {
+    var primary: CodexUsageResponse.WindowSnapshot?
+    var weekly: CodexUsageResponse.WindowSnapshot?
+
+    for window in windows {
+        if let seconds = window.limitWindowSeconds, seconds >= 604_800 {
+            weekly = window
+        } else if primary == nil {
+            primary = window
+        }
+    }
+
+    if primary == nil {
+        primary = windows.first
+    }
+
+    return (primary, weekly)
 }
 
 private func formatResetTime(unixSeconds: Int) -> String {

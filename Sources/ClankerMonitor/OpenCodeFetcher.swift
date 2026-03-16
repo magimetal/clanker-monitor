@@ -23,6 +23,8 @@ func fetchOpenCode(cookieHeader: String) async -> ProviderResult {
         return ProviderResult(
             usedPercent: usage.rollingUsagePercent,
             resetDescription: "resets in \(formatDuration(seconds: usage.rollingResetInSec))",
+            weeklyUsedPercent: usage.weeklyUsagePercent,
+            weeklyResetDescription: usage.weeklyResetInSec.map { "resets in \(formatDuration(seconds: $0))" },
             planLabel: "OpenCode",
             errorMessage: nil,
             updatedAt: Date())
@@ -195,6 +197,8 @@ private func looksOpenCodeSignedOut(_ text: String) -> Bool {
 private struct OpenCodeUsageParsed {
     let rollingUsagePercent: Double
     let rollingResetInSec: Int
+    let weeklyUsagePercent: Double?
+    let weeklyResetInSec: Int?
 }
 
 private func parseOpenCodeUsage(_ text: String) -> OpenCodeUsageParsed? {
@@ -219,30 +223,54 @@ private func parseOpenCodeUsage(_ text: String) -> OpenCodeUsageParsed? {
         pattern: #"rollingUsage[^}]*?(?:resetInSec|resetInSeconds|resetSeconds)\s*:\s*([0-9]+)"#,
         text: text) ?? 0
 
-    return OpenCodeUsageParsed(rollingUsagePercent: percent, rollingResetInSec: reset)
+    let weeklyPercent = extractOpenCodeDouble(
+        pattern: #"weeklyUsage[^}]*?usagePercent\s*:\s*([0-9]+(?:\.[0-9]+)?)"#,
+        text: text)
+    let weeklyReset = extractOpenCodeInt(
+        pattern: #"weeklyUsage[^}]*?(?:resetInSec|resetInSeconds|resetSeconds)\s*:\s*([0-9]+)"#,
+        text: text)
+
+    return OpenCodeUsageParsed(
+        rollingUsagePercent: percent,
+        rollingResetInSec: reset,
+        weeklyUsagePercent: weeklyPercent,
+        weeklyResetInSec: weeklyReset)
 }
 
 private func parseOpenCodeUsageFromJSON(_ object: Any) -> OpenCodeUsageParsed? {
     if let dict = object as? [String: Any],
-       let rolling = findRollingDict(in: dict)
+       let rolling = findUsageDict(in: dict, keys: ["rollingUsage", "rolling_usage", "dailyUsage", "daily_usage"]) 
     {
         let percent = numberFromAny(rolling["usagePercent"]) ?? numberFromAny(rolling["utilization"])
         if let percent {
             let reset = intFromAny(rolling["resetInSec"]) ?? 0
             let normalized = percent <= 1.0 ? percent * 100 : percent
-            return OpenCodeUsageParsed(rollingUsagePercent: normalized, rollingResetInSec: reset)
+
+            let weekly = findUsageDict(in: dict, keys: ["weeklyUsage", "weekly_usage"])
+            let weeklyPercentRaw = numberFromAny(weekly?["usagePercent"]) ?? numberFromAny(weekly?["utilization"])
+            let weeklyPercent = weeklyPercentRaw.map { $0 <= 1.0 ? $0 * 100 : $0 }
+            let weeklyReset = intFromAny(weekly?["resetInSec"]) ?? intFromAny(weekly?["resetInSeconds"]) ?? intFromAny(weekly?["resetSeconds"])
+
+            return OpenCodeUsageParsed(
+                rollingUsagePercent: normalized,
+                rollingResetInSec: reset,
+                weeklyUsagePercent: weeklyPercent,
+                weeklyResetInSec: weeklyReset)
         }
     }
     return nil
 }
 
-private func findRollingDict(in dict: [String: Any]) -> [String: Any]? {
-    if let rolling = dict["rollingUsage"] as? [String: Any] {
-        return rolling
+private func findUsageDict(in dict: [String: Any], keys: [String]) -> [String: Any]? {
+    for key in keys {
+        if let usage = dict[key] as? [String: Any] {
+            return usage
+        }
     }
+
     for value in dict.values {
         if let nested = value as? [String: Any],
-           let found = findRollingDict(in: nested)
+           let found = findUsageDict(in: nested, keys: keys)
         {
             return found
         }

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Weekly usage limit tracking for Codex and OpenCode, including reset timing in provider cards.
+
+### Changed
+- Refined menu-bar UI with modern glass-style cards, improved hierarchy/spacing, and polished status/error presentation.
+
 ## [0.1.0] - 2026-03-09
 
 ### Added

@@ -31,6 +31,8 @@ enum Provider: String, CaseIterable, Identifiable {
 struct ProviderResult {
     var usedPercent: Double? = nil
     var resetDescription: String? = nil
+    var weeklyUsedPercent: Double? = nil
+    var weeklyResetDescription: String? = nil
     var planLabel: String? = nil
     var errorMessage: String? = nil
     var updatedAt: Date? = nil

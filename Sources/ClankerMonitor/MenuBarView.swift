@@ -6,24 +6,29 @@ struct MenuBarView: View {
     @State private var showSettings = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             header
 
             if showSettings {
-                Divider()
+                Divider().opacity(0.4)
 
                 SettingsView {
                     showSettings = false
                 }
                 .environmentObject(appState)
             } else {
-                if appState.visibleProviders.isEmpty {
-                    Text("No providers are visible. Enable at least one in Settings.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 6)
-                } else {
-                    VStack(spacing: 8) {
+                VStack(spacing: 10) {
+                    if appState.visibleProviders.isEmpty {
+                        Text("No providers are visible. Enable at least one in Settings.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(.white.opacity(0.06))
+                            )
+                    } else {
                         ForEach(appState.visibleProviders) { provider in
                             ProviderRowView(provider: provider)
                         }
@@ -33,7 +38,7 @@ struct MenuBarView: View {
                 footer
             }
 
-            Divider()
+            Divider().opacity(0.4)
 
             HStack(spacing: 8) {
                 Button(showSettings ? "Back" : "Settings") {
@@ -47,11 +52,14 @@ struct MenuBarView: View {
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
                 .keyboardShortcut("q")
             }
         }
-        .padding(16)
-        .frame(width: showSettings ? 340 : 300)
+        .padding(14)
+        .frame(width: showSettings ? 360 : 332)
+        .background(panelBackground)
         .task {
             while !Task.isCancelled {
                 await appState.refresh()
@@ -61,27 +69,40 @@ struct MenuBarView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
+        HStack(alignment: .top, spacing: 10) {
             headerLogo
                 .resizable()
                 .interpolation(.high)
-                .frame(width: 52, height: 52)
+                .frame(width: 42, height: 42)
+                .padding(6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(.white.opacity(0.08))
+                )
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("Clanker Monitor")
-                    .font(.headline)
+                    .font(.headline.weight(.semibold))
                 Text("Live quota monitor")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer()
 
             if appState.isRefreshing {
-                Label("Refreshing", systemImage: "arrow.triangle.2.circlepath")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .labelStyle(.titleAndIcon)
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("Refreshing")
+                        .font(.caption2.weight(.medium))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(.white.opacity(0.1))
+                )
             }
         }
     }
@@ -108,10 +129,18 @@ struct MenuBarView: View {
     }
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(updatedLabel)
-                .font(.caption)
-                .foregroundColor(.secondary)
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(updatedLabel)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("\(appState.visibleProviders.count) provider\(appState.visibleProviders.count == 1 ? "" : "s") visible")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
+            Spacer()
 
             Button("Refresh Now") {
                 Task { await appState.refresh() }
@@ -122,9 +151,22 @@ struct MenuBarView: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(.quaternary.opacity(0.5))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(.white.opacity(0.07))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+                )
         )
+    }
+
+    private var panelBackground: some View {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .fill(.ultraThinMaterial)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(.white.opacity(0.14), lineWidth: 1)
+            )
     }
 
     private var updatedLabel: String {
