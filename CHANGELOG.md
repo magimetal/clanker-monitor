@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-16
+
 ### Added
 - Weekly usage limit tracking for Codex and OpenCode, including reset timing in provider cards.
 
