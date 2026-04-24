@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Generated repository agent guidance at the root and ClankerMonitor source tree to document project structure, conventions, commands, and guardrails for coding agents.
+
 ## [0.3.0] - 2026-04-16
 
 ### Added
