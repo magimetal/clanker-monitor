@@ -18,9 +18,12 @@ func fetchCodex() async -> ProviderResult {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 15
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("Bearer \(credentials.token)", forHTTPHeaderField: "Authorization")
         request.setValue("ClankerMonitor", forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
         if let accountId = credentials.accountID, !accountId.isEmpty {
             request.setValue(accountId, forHTTPHeaderField: "ChatGPT-Account-Id")
         }
@@ -54,7 +57,7 @@ func fetchCodex() async -> ProviderResult {
             usedPercent: Double(primary.usedPercent),
             resetDescription: "resets at \(formatResetTime(unixSeconds: primary.resetAt))",
             weeklyUsedPercent: weeklyWindow.map { Double($0.usedPercent) },
-            weeklyResetDescription: weeklyWindow.map { "resets at \(formatResetTime(unixSeconds: $0.resetAt))" },
+            weeklyResetDescription: weeklyWindow.map { "resets \(formatWeeklyResetDateTime(unixSeconds: $0.resetAt))" },
             planLabel: decoded.planType,
             errorMessage: nil,
             updatedAt: Date())
@@ -113,7 +116,7 @@ private struct CodexUsageResponse: Decodable {
     }
 
     struct WindowSnapshot: Decodable {
-        let usedPercent: Int
+        let usedPercent: Double
         let resetAt: Int
         let limitWindowSeconds: Int?
 
@@ -151,4 +154,13 @@ private func formatResetTime(unixSeconds: Int) -> String {
     formatter.amSymbol = "am"
     formatter.pmSymbol = "pm"
     return formatter.string(from: date).lowercased()
+}
+
+private func formatWeeklyResetDateTime(unixSeconds: Int) -> String {
+    let date = Date(timeIntervalSince1970: TimeInterval(unixSeconds))
+    let formatter = DateFormatter()
+    formatter.dateFormat = "EEE 'at' h:mma"
+    formatter.amSymbol = "am"
+    formatter.pmSymbol = "pm"
+    return formatter.string(from: date)
 }

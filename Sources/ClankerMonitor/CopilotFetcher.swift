@@ -14,12 +14,16 @@ func fetchCopilot(token: String) async -> ProviderResult {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 15
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("token \(trimmed)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
         request.setValue("vscode/1.96.2", forHTTPHeaderField: "Editor-Version")
         request.setValue("copilot-chat/0.26.7", forHTTPHeaderField: "Editor-Plugin-Version")
         request.setValue("GitHubCopilotChat/0.26.7", forHTTPHeaderField: "User-Agent")
-        request.setValue("2025-04-01", forHTTPHeaderField: "X-Github-Api-Version")
+        request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else {
@@ -53,10 +57,11 @@ func fetchCopilot(token: String) async -> ProviderResult {
         let resetDescription = makeCopilotResetDescription(usage.quotaResetDateUtc)
 
         if let premium, !premium.unlimited {
-            let usedPercent = max(0, 100 - premium.percentRemaining)
+            let usedPercent = computeCopilotUsedPercent(premium)
+            let usedCount = computeCopilotUsedCount(premium)
 
             let weeklyUsedPercent = computeCopilotWeeklyPace(
-                remaining: premium.remaining,
+                used: usedCount,
                 entitlement: premium.entitlement,
                 resetDate: usage.quotaResetDateUtc)
 
@@ -66,12 +71,12 @@ func fetchCopilot(token: String) async -> ProviderResult {
             }
 
             let overageNote: String? = premium.overageCount > 0
-                ? "\(premium.overageCount) overage"
+                ? "\(formatCopilotCount(premium.overageCount)) overage"
                 : nil
 
             return ProviderResult(
                 usedPercent: usedPercent,
-                resetDescription: resetDescription.map { $0 + (overageNote.map { " | \($0)" } ?? "") } ?? overageNote,
+                resetDescription: makeCopilotUsageDescription(snapshot: premium, resetDescription: resetDescription, overageNote: overageNote),
                 weeklyUsedPercent: weeklyUsedPercent,
                 weeklyResetDescription: weeklyDescription,
                 planLabel: planLabel,
@@ -91,10 +96,10 @@ func fetchCopilot(token: String) async -> ProviderResult {
         }
 
         if let chat {
-            let usedPercent = max(0, 100 - chat.percentRemaining)
+            let usedPercent = computeCopilotUsedPercent(chat)
             return ProviderResult(
                 usedPercent: usedPercent,
-                resetDescription: resetDescription,
+                resetDescription: makeCopilotUsageDescription(snapshot: chat, resetDescription: resetDescription, overageNote: nil),
                 weeklyUsedPercent: nil,
                 weeklyResetDescription: nil,
                 planLabel: planLabel,
@@ -108,14 +113,10 @@ func fetchCopilot(token: String) async -> ProviderResult {
     }
 }
 
-private func computeCopilotWeeklyPace(remaining: Int, entitlement: Int, resetDate: String?) -> Double? {
-    guard entitlement > 0 else { return nil }
-
-    let used = entitlement - remaining
-    guard used >= 0 else { return nil }
+private func computeCopilotWeeklyPace(used: Int, entitlement: Int, resetDate: String?) -> Double? {
+    guard entitlement > 0, used >= 0, let reset = parseCopilotResetDate(resetDate) else { return nil }
 
     let now = Date()
-    let reset = parseCopilotResetDate(resetDate)
     let daysRemaining = Calendar.current.dateComponents([.day], from: now, to: reset).day ?? 0
     guard daysRemaining > 0 else { return nil }
 
@@ -127,7 +128,41 @@ private func computeCopilotWeeklyPace(remaining: Int, entitlement: Int, resetDat
     let weeklyAllowance = Double(entitlement) / Double(daysInPeriod) * 7.0
     guard weeklyAllowance > 0 else { return nil }
 
-    return min(100.0, (weeklyBurnRate / weeklyAllowance) * 100.0)
+    return (weeklyBurnRate / weeklyAllowance) * 100.0
+}
+
+private func computeCopilotUsedCount(_ snapshot: CopilotUserResponse.QuotaSnapshot) -> Int {
+    max(0, snapshot.entitlement - max(0, snapshot.remaining)) + max(0, snapshot.overageCount)
+}
+
+private func computeCopilotUsedPercent(_ snapshot: CopilotUserResponse.QuotaSnapshot) -> Double {
+    guard snapshot.entitlement > 0 else {
+        return max(0, 100 - snapshot.percentRemaining)
+    }
+
+    return max(0, Double(computeCopilotUsedCount(snapshot)) / Double(snapshot.entitlement) * 100.0)
+}
+
+private func makeCopilotUsageDescription(
+    snapshot: CopilotUserResponse.QuotaSnapshot,
+    resetDescription: String?,
+    overageNote: String?
+) -> String? {
+    var parts: [String] = []
+
+    if snapshot.entitlement > 0 {
+        parts.append("\(formatCopilotCount(computeCopilotUsedCount(snapshot)))/\(formatCopilotCount(snapshot.entitlement)) used")
+    }
+
+    if let resetDescription {
+        parts.append(resetDescription)
+    }
+
+    if let overageNote {
+        parts.append(overageNote)
+    }
+
+    return parts.isEmpty ? nil : parts.joined(separator: " • ")
 }
 
 private func beginningOfMonth(for date: Date) -> Date {
@@ -136,9 +171,8 @@ private func beginningOfMonth(for date: Date) -> Date {
     return calendar.date(from: components) ?? date
 }
 
-private func parseCopilotResetDate(_ isoString: String?) -> Date {
-    let fallback = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
-    guard let isoString else { return fallback }
+private func parseCopilotResetDate(_ isoString: String?) -> Date? {
+    guard let isoString, !isoString.isEmpty else { return nil }
 
     let iso = ISO8601DateFormatter()
     iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -151,11 +185,11 @@ private func parseCopilotResetDate(_ isoString: String?) -> Date {
     formatter.dateFormat = "yyyy-MM-dd"
     if let date = formatter.date(from: isoString) { return date }
 
-    return fallback
+    return nil
 }
 
 private func makeCopilotResetDescription(_ isoString: String?) -> String? {
-    let date = parseCopilotResetDate(isoString)
+    guard let date = parseCopilotResetDate(isoString) else { return nil }
     let formatter = DateFormatter()
     formatter.dateFormat = "MMM d"
     return "resets \(formatter.string(from: date))"
@@ -167,6 +201,10 @@ private func formatDuration(seconds: Int) -> String {
     let minutes = (safe % 3600) / 60
     if hours > 0 { return "\(hours)h \(minutes)m" }
     return "\(minutes)m"
+}
+
+private func formatCopilotCount(_ value: Int) -> String {
+    NumberFormatter.localizedString(from: NSNumber(value: value), number: .decimal)
 }
 
 private struct CopilotUserResponse: Decodable {
@@ -196,7 +234,6 @@ private struct CopilotUserResponse: Decodable {
         let entitlement: Int
         let unlimited: Bool
         let overageCount: Int
-        let overagePermitted: Bool
 
         enum CodingKeys: String, CodingKey {
             case percentRemaining = "percent_remaining"
@@ -204,7 +241,15 @@ private struct CopilotUserResponse: Decodable {
             case entitlement
             case unlimited
             case overageCount = "overage_count"
-            case overagePermitted = "overage_permitted"
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            percentRemaining = try container.decodeIfPresent(Double.self, forKey: .percentRemaining) ?? 0
+            remaining = try container.decodeIfPresent(Int.self, forKey: .remaining) ?? 0
+            entitlement = try container.decodeIfPresent(Int.self, forKey: .entitlement) ?? 0
+            unlimited = try container.decodeIfPresent(Bool.self, forKey: .unlimited) ?? false
+            overageCount = try container.decodeIfPresent(Int.self, forKey: .overageCount) ?? 0
         }
     }
 }

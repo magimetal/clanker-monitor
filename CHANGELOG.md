@@ -4,8 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-04-25
+
 ### Added
 - Generated repository agent guidance at the root and ClankerMonitor source tree to document project structure, conventions, commands, and guardrails for coding agents.
+
+### Fixed
+- Codex weekly reset label now uses the weekly quota window reset timestamp with weekday and time instead of a time-only daily-style label.
+- Copilot quota refresh now bypasses cached responses and displays exact used/entitlement counts so usage changes are visible immediately.
+
+### Changed
+- Copilot usage percent now derives from `remaining` and `entitlement`, with more tolerant quota decoding and the stable GitHub API version header.
 
 ## [0.3.0] - 2026-04-16
 
