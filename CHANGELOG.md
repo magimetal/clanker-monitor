@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-06-17
+
+### Added
+- z.ai coding plan usage provider: polls `https://api.z.ai/api/monitor/usage/quota/limit` with a pasted API key (Settings), surfaced as a new provider card (hidden by default). Supports weekly + current token quota slots, plan label, and reset timing.
+- z.ai API key field (SecureField) in Settings; visibility toggle in Settings.
+
+### Changed
+- `Package.swift` now excludes `Sources/ClankerMonitor/AGENTS.md` from the SwiftPM target to silence the unhandled-file warning while keeping the doc in tree.
+
 ## [0.3.1] - 2026-04-25
 
 ### Added

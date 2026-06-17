@@ -6,6 +6,7 @@ enum Provider: String, CaseIterable, Identifiable {
     case copilot
     case claude
     case opencode
+    case zai
 
     var id: String { rawValue }
 
@@ -15,6 +16,7 @@ enum Provider: String, CaseIterable, Identifiable {
         case .copilot: return "Copilot"
         case .claude: return "Claude"
         case .opencode: return "OpenCode"
+        case .zai: return "z.ai"
         }
     }
 
@@ -24,6 +26,7 @@ enum Provider: String, CaseIterable, Identifiable {
         case .copilot: return "chevron.left.forwardslash.chevron.right"
         case .claude: return "brain"
         case .opencode: return "bolt.circle"
+        case .zai: return "z.circle"
         }
     }
 }
@@ -47,10 +50,12 @@ final class AppState: ObservableObject {
 
     @AppStorage("copilotPAT") var copilotPAT: String = ""
     @AppStorage("opencodecookie") var opencodeCookie: String = ""
+    @AppStorage("zaiAPIKey") var zaiAPIKey: String = ""
     @AppStorage("providerVisible_codex") var isCodexVisible: Bool = true
     @AppStorage("providerVisible_copilot") var isCopilotVisible: Bool = true
     @AppStorage("providerVisible_claude") var isClaudeVisible: Bool = true
     @AppStorage("providerVisible_opencode") var isOpenCodeVisible: Bool = true
+    @AppStorage("providerVisible_zai") var isZAIVisible: Bool = false
 
     private init() {}
 
@@ -60,6 +65,7 @@ final class AppState: ObservableObject {
         case .copilot: return isCopilotVisible
         case .claude: return isClaudeVisible
         case .opencode: return isOpenCodeVisible
+        case .zai: return isZAIVisible
         }
     }
 
@@ -72,6 +78,7 @@ final class AppState: ObservableObject {
         case .copilot: isCopilotVisible = isVisible
         case .claude: isClaudeVisible = isVisible
         case .opencode: isOpenCodeVisible = isVisible
+        case .zai: isZAIVisible = isVisible
         }
     }
 
@@ -88,12 +95,14 @@ final class AppState: ObservableObject {
         async let codex = fetchCodex()
         async let copilot = fetchCopilot(token: copilotPAT)
         async let opencode = fetchOpenCode(cookieHeader: opencodeCookie)
+        async let zai = fetchZAI(apiKey: zaiAPIKey)
 
-        let (codexResult, copilotResult, opencodeResult) = await (codex, copilot, opencode)
+        let (codexResult, copilotResult, opencodeResult, zaiResult) = await (codex, copilot, opencode, zai)
 
         results[.codex] = codexResult
         results[.copilot] = copilotResult
         results[.opencode] = opencodeResult
+        results[.zai] = zaiResult
 
         if shouldFetchClaude {
             results[.claude] = await fetchClaude()

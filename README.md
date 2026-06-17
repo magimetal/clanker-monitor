@@ -25,6 +25,7 @@ Current providers:
 - GitHub Copilot
 - Claude
 - OpenCode
+- z.ai (hidden by default)
 
 ---
 
@@ -50,6 +51,7 @@ Current providers:
 | **Copilot** | Manual GitHub PAT in Settings (`Authorization: token <PAT>`) | Quota is fetched from `https://api.github.com/copilot_internal/user`; missing/expired PAT is surfaced inline. |
 | **Claude** | **Keychain-first**, file fallback | First tries macOS Keychain item (`Claude Code-credentials`), then falls back to `~/.claude/.credentials.json`. |
 | **OpenCode** | Manual cookie header in Settings | Cookie can expire; refresh by re-copying from browser DevTools and saving again. |
+| **z.ai** | Manual z.ai API key in Settings (`authorization: <redacted> <key>`) | Hidden by default. Get the key from the z.ai console. Quota fetched from `https://api.z.ai/api/monitor/usage/quota/limit`. |
 
 ---
 
@@ -132,6 +134,7 @@ gh release create "vX.Y.Z" "ClankerMonitor-vX.Y.Z-macos.zip" --title "vX.Y.Z" --
 4. Open **Settings** and configure credentials:
    - Copilot PAT
    - OpenCode cookie header
+   - z.ai API key
 5. Toggle provider visibility as needed.
 6. Click **Save & Refresh**.
 
@@ -146,8 +149,9 @@ Inside the inline Settings panel:
 - **Credentials**
   - Copilot PAT (`SecureField`)
   - OpenCode cookie (`TextEditor`)
+  - z.ai API key (`SecureField`)
 - **Visible Providers**
-  - Per-provider toggles for Codex, Copilot, Claude, OpenCode
+  - Per-provider toggles for Codex, Copilot, Claude, OpenCode, z.ai
 - **Open at Login**
   - Uses `SMAppService.mainApp` registration
 
@@ -228,7 +232,7 @@ Fix:
 ## Development notes
 
 - Single executable SwiftPM package (`Package.swift`)
-- Source layout under `Sources/ClankerMonitor` (10 Swift source files):
+- Source layout under `Sources/ClankerMonitor` (11 Swift source files):
   - `ClankerMonitorApp.swift`
   - `MenuBarView.swift`
   - `ProviderRowView.swift`
@@ -238,5 +242,6 @@ Fix:
   - `ClaudeFetcher.swift`
   - `OpenCodeFetcher.swift`
   - `SettingsView.swift`
+  - `ZAIFetcher.swift`
   - `LaunchAtLoginManager.swift`
 - No external package dependencies

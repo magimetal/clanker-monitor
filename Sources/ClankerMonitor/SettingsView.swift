@@ -81,6 +81,19 @@ struct SettingsView: View {
                         .stroke(Color.gray.opacity(0.25), lineWidth: 1)
                 )
             }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("z.ai API Key")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.secondary)
+
+                SecureField("Paste z.ai API token", text: $appState.zaiAPIKey)
+                    .textFieldStyle(.roundedBorder)
+
+                Text("Get from z.ai console. Stored locally.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding(12)
         .background(

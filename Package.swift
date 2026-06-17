@@ -12,7 +12,8 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "ClankerMonitor",
-            path: "Sources/ClankerMonitor"
+            path: "Sources/ClankerMonitor",
+            exclude: ["AGENTS.md"]
         )
     ]
 )
