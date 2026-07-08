@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-07
+
+### Added
+- Claude OAuth token auto-refresh in `ClaudeFetcher`: refreshes near-expiry credentials using the same client ID, endpoints, and response parsing as magi-code, so shared `~/.claude/.credentials.json` (or Keychain `Claude Code-credentials`) stays valid without manual `claude login`.
+- Snapshot/re-read race guard around file writeback: aborts the write when another process (magi-code) refreshed concurrently, avoiding stale-token clobbers.
+- Atomic credential file writeback with `0600` permissions, preserving existing `scopes`, `rateLimitTier`, and `subscriptionType`.
+
+### Changed
+- `fetchClaude()` now parses the full `claudeAiOauth` object (`accessToken`, `refreshToken`, `expiresAt` epoch-ms, `scopes`) instead of only the access token; root `access_token` fallback remains read-only.
+- Refresh threshold mirrors magi-code: refresh iff `expiresAt` missing or within 300s of expiry, so the 5-minute UI loop does not refresh on every tick.
+
 ## [0.4.0] - 2026-06-17
 
 ### Added
